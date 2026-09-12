@@ -46,3 +46,9 @@ $wc data/measurements_1B.txt
 (unsorted output) 209.83s user 14.07s system 95% cpu 3:55.18 total
 - Rust: 
 149.26s user 5.85s system 97% cpu 2:38.60 total
+These seem pretty bad from comparing some other naive solutions on the internet. Going to look into that next pass.
+
+### Lessons pass 1:
+- first ever from scratch hashmap impl in C.
+- basics of Rust (and a nice refresher to C!) some first-hand intro to ownership and borrowing. Working on C first and then rust kinda really dug this in.
+- first ever string sorting on hashmap keys in C.
