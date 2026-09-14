@@ -105,13 +105,18 @@ char **parseLine(const char *line, char delimiter)
   return results;
 }
 
-int parseTemp(char *tempStr)
+//Adapted atoi, we just ignore the '.', effectively 10x and converting to int.
+int parseTemp(char *s)
 {
-  char **toks = parseLine(tempStr, '.');
-  int tok1 = atoi(toks[0]) * MULT_FACTOR;
-  int tok2 = ((tok1 > 0) - (tok1 < 0))*atoi(toks[1])*MULT_FACTOR;
-  free(toks);
-  return tok1 + tok2;
+  int n=0;
+  int neg = *s=='-'? 1:0;
+  s += neg;
+
+  while( (*s>='0' && *s<='9') || *s=='.'){
+    if(*s=='.'){s++;}
+    n = n*10 - (int)(*s++ - '0');
+  }
+  return neg ? n : -n;
 }
 
 void printResults(cityEntry *cityEntries[], FILE* fp){
