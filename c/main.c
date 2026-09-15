@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "merge.h"
 
-#define CAPACITY 10000 // assuming 10000 max unique cities.
+#define CAPACITY 10000 // rules say 10000 max unique cities
 #define MULT_FACTOR 10 // we deal in int, and assume all numbers are 1 decimal valued.
 
 //-------------------- Hash Map ---------------------
@@ -24,6 +25,11 @@ static uint64_t hash_str(char *s)
   return hash;
 }
 
+typedef struct Entry{
+  char *city;
+  int temperature;
+}Entry;
+
 typedef struct Stats
 {
   long sum;  
@@ -42,6 +48,10 @@ typedef struct cityEntry
 
 cityEntry *citiesMap[CAPACITY];
 
+// bookkeeping for sorting etc.
+char *citiesList[CAPACITY];
+size_t citiesCount = 0;
+
 Stats *getOrCreateCity(char *city)
 {
   size_t idx = hash_str(city) % CAPACITY;
@@ -58,104 +68,24 @@ Stats *getOrCreateCity(char *city)
   e = malloc(sizeof *e);
   entryCtr++;
   e->city = strdup(city);
+
+  // we point to the keys directly instead of another copy.
+  citiesList[citiesCount++] = e->city;
+
   // dirty magic placeholders for now..
-  e->stats = (Stats){0, 1000000, -1000000, 0};
+  e->stats = (Stats){0, 100*MULT_FACTOR, -100*MULT_FACTOR, 0};
   e->next = citiesMap[idx];
   citiesMap[idx] = e;
   // printf("created entry for city %s\n", city);
   return &e->stats;
   
 }
-//--------------------- MergeSort ---------------------
-void mergeSorted(char **l1, char **l2, int len1, int len2, char **tmp)
-{
-    int i=0,j=0;
-    while(i<len1 && j<len2){
-        if(strcmp(l1[i], l2[j])>0){
-            tmp[i+j] = l2[j];
-        j++;
-            continue;
-        }
-        tmp[i+j]= l1[i];
-        i++;
-    }
-    while(i<len1){
-        tmp[i+j]= l1[i];
-        i++;
-    }
-    while(j<len2){
-        tmp[i+j] = l2[j];
-        j++;
-    }
-}
 
-void _mergeSort(char **s, char **tmp, size_t len){
-    if(len<=1){
-        return;
-    }
-    int mid = len / 2;
-    _mergeSort(s, tmp, mid);
-    _mergeSort(s+mid, tmp+mid, len-mid);
-    mergeSorted(s, s+mid, mid, len-mid, tmp);
-    // we copy a lot, can we skip?
-    for(int i=0; i<len;i ++){
-        s[i] = tmp[i];
-    }
-
-}
-
-// sorts in place
-int mergeSort(char **s, size_t len){
-    // only one alloc
-    char **tmp = malloc(len* sizeof(char*));
-    if(!tmp){
-        return 1;
-    }
-    _mergeSort(s, tmp, len);
-    free(tmp);
-    return 0;
-}
 
 //--------------------- Helpers -----------------------
 
-// splits line by delim and mallocs 2 strings
-char **parseLine(const char *line, char delimiter)
-{
-  char **results = malloc(2 * sizeof(char *));
-  if (results == NULL)
-  {
-    return NULL;
-  }
-  int len = 0, i = 0;
-  int tok_idx = 0;
-  int start_idx = 0;
-
-  while (1)
-  {
-    if (line[i] == delimiter || line[i] == '\0')
-    {
-      len = i - start_idx;
-
-      results[tok_idx] = malloc((len + 1) * sizeof(char));
-      if (results[tok_idx] == NULL)
-        return NULL;
-
-      memcpy(results[tok_idx], &line[start_idx], len);
-      results[tok_idx][len] = '\0';
-
-      tok_idx++;
-      start_idx = i + 1;
-    }
-    if (line[i] == '\0')
-      break;
-    i++;
-  }
-
-  return results;
-}
-
-//Adapted atoi, we just ignore the '.', effectively 10x and converting to int.
-int parseTemp(char *s)
+// adapted atoi, we just ignore the '.', effectively 10x and converting to int.
+int parseTemp(const char *s)
 {
   int n=0;
   int neg = *s=='-'? 1:0;
@@ -168,24 +98,55 @@ int parseTemp(char *s)
   return neg ? n : -n;
 }
 
-void printResults(cityEntry *cityEntries[], FILE* fp){
+// parses line into Entry struct
+void parseLine(const char *line, Entry *entry)
+{
+  int len = 0, i = 0;
+  int start_idx = 0;
+
+  // first parse city
+  while (1){
+    if (line[i] == ';')
+    {
+      len = i - start_idx;
+
+      entry->city = malloc((len + 1) * sizeof(char));
+      if (entry->city == NULL)
+        return;
+
+      memcpy(entry->city, &line[start_idx], len);
+      entry->city[len] = '\0';
+      start_idx = i + 1;
+      break;
+    }
+    i++;  
+  }
+
+  // parse temperature
+  // we can boldy assume rest of the str is temp, parser stops at \0
+  entry->temperature = parseTemp(line+start_idx);
+  return;
+}
+
+
+
+void printResults(FILE* fp){
+  mergeSort(citiesList, citiesCount);
+
   fprintf(fp, "{");
-  for(int i=0;i<CAPACITY;i++){
-    if (cityEntries[i]!=NULL){
-      cityEntry *currEntry = cityEntries[i];
+  for(size_t i=0;i<citiesCount;i++){
+    if (citiesList[i]!=NULL){
+      Stats *stats = getOrCreateCity(citiesList[i]);
+      
       // go through linked list to make sure we exhaust collided entries
-      while(currEntry!=NULL){
-        fprintf(fp, "%s:%.1f/%.1f/%.1f, ", 
-          currEntry->city, 
-          (float)currEntry->stats.min/MULT_FACTOR, 
-          (float)currEntry->stats.sum/currEntry->stats.n/MULT_FACTOR, 
-          (float)currEntry->stats.max/MULT_FACTOR
-        );
-        printCtr++;
-        currEntry = currEntry->next;
+      fprintf(fp, "%s:%.1f/%.1f/%.1f, ", 
+        citiesList[i], 
+        (float)stats->min/MULT_FACTOR, 
+        (float)stats->sum/stats->n/MULT_FACTOR, 
+        (float)stats->max/MULT_FACTOR
+      );
+      printCtr++;
       }
-      }
-    //   // printf("%d: %s, %d, %d, %ld, %d \n", i, citiesMap[i]->city, citiesMap[i]->entry.min, citiesMap[i]->entry.max, citiesMap[i]->entry.sum, citiesMap[i]->entry.n);
   }
   fprintf(fp, "}");
 }  
@@ -203,11 +164,11 @@ int main()
   
   while (fgets(line, sizeof(line), fp) != NULL)
   {
-    char **results = parseLine(line, ';');
+    Entry entry;
+    parseLine(line, &entry);
 
-    Stats *stats = getOrCreateCity(results[0]);
-    int temp = parseTemp(results[1]);
-    free(results);
+    Stats *stats = getOrCreateCity(entry.city);
+    int temp = entry.temperature;
 
     stats->min = stats->min > temp ? temp : stats->min;
     stats->n += 1;
@@ -221,7 +182,7 @@ int main()
        printf("Error opening file!");
        return 1;
    }
-  printResults(citiesMap, fp);
+  printResults(fp);
   fclose(fp);
   printf("%d %d", entryCtr, printCtr);
   
