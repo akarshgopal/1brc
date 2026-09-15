@@ -51,4 +51,9 @@ These seem pretty bad from comparing some other naive solutions on the internet.
 ### Lessons pass 1:
 - first ever from scratch hashmap impl in C.
 - basics of Rust (and a nice refresher to C!) some first-hand intro to ownership and borrowing. Working on C first and then rust kinda really dug this in.
-- first ever string sorting on hashmap keys in C.
+
+### Pass 2
+- C:
+(sorted output) 97.50s user 8.55s system 95% cpu 1:51.49 total
+- first ever string mergeSort on hashmap keys in C.
+- faster line parsing: eliminate unnecessary mallocs
