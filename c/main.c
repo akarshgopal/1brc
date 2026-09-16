@@ -158,11 +158,17 @@ void printResults(FILE *fp)
   fprintf(fp, "}");
 }
 
-int main()
+int main(int argc, char *argv[])
 {
+  // expect the first arg to be the filepath, default ot measurements_1B
+  char *path = "data/measurements_1B.txt";
+  if(argc==2){
+    path = argv[1];
+  }
   FILE *fp;
+  
   char line[128]; // longest name's 100 chars, temp longest: 4 chars
-  fp = fopen("data/measurements_1B.txt", "r");
+  fp = fopen(path, "r");
 
   if (fp == NULL)
   {
@@ -193,5 +199,5 @@ int main()
   }
   printResults(fp);
   fclose(fp);
-  printf("%d %d", entryCtr, printCtr);
+  // printf("%d %d", entryCtr, printCtr);
 }
