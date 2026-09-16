@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "merge.h"
 
 #define CAPACITY 10000 // rules say 10000 max unique cities
