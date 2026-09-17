@@ -53,7 +53,7 @@ Stats *getOrCreateCity(cityEntry *citiesMap[CAPACITY], char *city, size_t len, B
   // follow linked list until we hit same city (can we avoid this somehow? probing?)
   while (e != NULL)
   {
-    if (strncmp(e->city, city, len) == 0)
+    if (memcmp(e->city, city, len) == 0)
     {
       return &e->stats;
     }
