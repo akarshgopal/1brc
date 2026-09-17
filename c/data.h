@@ -14,7 +14,7 @@
 static uint64_t hash_str(char *s, size_t len)
 {
   unsigned long hash = FNV_OFFSET;
-  for(int i=0;i<len;++i)
+  for (size_t i = 0; i < len; ++i)
   {
     hash ^= (uint64_t)(unsigned char)*s++;
     hash *= FNV_PRIME;
@@ -23,10 +23,11 @@ static uint64_t hash_str(char *s, size_t len)
 }
 
 // bookkeeping for sorting etc.
-typedef struct Book{
+typedef struct Book
+{
   char *list[CAPACITY];
   size_t count;
-}Book;
+} Book;
 
 typedef struct Stats
 {
@@ -44,7 +45,7 @@ typedef struct cityEntry
   struct cityEntry *next;
 } cityEntry;
 
-Stats *getOrCreateCity(cityEntry **citiesMap, char *city, size_t len, Book *citiesBook)
+Stats *getOrCreateCity(cityEntry *citiesMap[CAPACITY], char *city, size_t len, Book *citiesBook)
 {
   size_t idx = hash_str(city, len) % CAPACITY;
   cityEntry *e = citiesMap[idx];
@@ -52,14 +53,20 @@ Stats *getOrCreateCity(cityEntry **citiesMap, char *city, size_t len, Book *citi
   // follow linked list until we hit same city (can we avoid this somehow? probing?)
   while (e != NULL)
   {
-    if (strcmp(e->city, city) == 0)
+    if (strncmp(e->city, city, len) == 0)
+    {
       return &e->stats;
+    }
     e = e->next;
   }
 
   // new if entry doesn't exist
   e = malloc(sizeof *e);
-  e->city = strdup(city);
+
+  // manually copy str len of memory
+  e->city = malloc(len * sizeof(char) + 1);
+  e->city = memcpy(e->city, city, len);
+  e->city[len] = '\0'; // don't forget the null terminator!!
 
   // we point to the keys directly instead of another copy.
   citiesBook->list[citiesBook->count++] = e->city;
@@ -68,6 +75,6 @@ Stats *getOrCreateCity(cityEntry **citiesMap, char *city, size_t len, Book *citi
   e->stats = (Stats){0, 100 * MULT_FACTOR, -100 * MULT_FACTOR, 0};
   e->next = citiesMap[idx];
   citiesMap[idx] = e;
-  // printf("created entry for city %s\n", city);
+
   return &e->stats;
 }
