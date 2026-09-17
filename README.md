@@ -57,3 +57,14 @@ These seem pretty bad from comparing some other naive solutions on the internet.
 (sorted output) 97.50s user 8.55s system 95% cpu 1:51.49 total
 - first ever string mergeSort on hashmap keys in C.
 - faster line parsing: eliminate unnecessary mallocs
+- After parsing in chunks with fread(), instead of fgets():
+43.66s user 4.39s system 95% cpu 50.377 total
+
+
+### Common bugs
+#### C
+- off-by-1
+- string null terminators
+- string literals vs pointers to string slices in memory
+- out-of-bounds access
+- memory corruption
