@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "helpers.h"
 
-#define CHUNK 1024 * 1024
+#define CHUNK 1024 * 1024 * 8
 #define LEFTOVER_BUF 1024
 #define BUF_SIZE CHUNK + LEFTOVER_BUF
 #ifndef TABLE_SIZE
@@ -57,70 +57,43 @@ int main(int argc, char *argv[])
       }
       if (feof(fp))
       {
-        size_t start = 0;
         size_t i = 0;
-
+        char *p = buf;
         // this is guaranteed to end at EOF by the input rules
         while (i < leftover)
         {
-          if (buf[i] == ';')
-          {
-            int len = i - start;
-            Stats *stats = getOrCreateCity(citiesMap, &buf[start], len, &citiesBook);
-            i++; // skip ';'
-            char *p = &buf[i];
-            int temp = parseTemp(&p); // moves bufptr up till '\n'
-
-            stats->min = stats->min > temp ? temp : stats->min;
-            stats->n += 1;
-            stats->max = stats->max < temp ? temp : stats->max;
-            stats->sum += (long)temp;
-
-            if (*p == '\n')
-            {
-              ++entryCtr;
-              ++p;
-            }
-            i = p - buf; // increment i by the shift in buf
-            start = i;
-            continue;
-          }
-          i++;
+          Stats *stats = getCityFromLine(&p, citiesMap, &citiesBook);
+          int temp = parseTemp(&p); // moves bufptr up till '\n'
+          
+          stats->min = stats->min > temp ? temp : stats->min;
+          stats->n += 1;
+          stats->max = stats->max < temp ? temp : stats->max;
+          stats->sum += (long)temp;
+          
+          i = p - buf;
         }
+        break;
       }
-      break;
     }
 
     size_t start = 0;
     size_t i = 0;
+    char *p = buf;
 
-    // iterate through the read bytes until we're at end of the last line within last 128 bytes
+    // iterate through the read bytes until we're at end of the last line within LEFTOVER_BUF
     while (i < total - LEFTOVER_BUF)
     {
-      // iterate through buf with as few string copies as possible.
-      if (buf[i] == ';')
-      {
-        int len = i - start;
-        Stats *stats = getOrCreateCity(citiesMap, &buf[start], len, &citiesBook);
-        i++; // skip ';'
-        char *p = &buf[i];
-        int temp = parseTemp(&p); // moves bufptr up till '\n'
-
-        stats->min = stats->min > temp ? temp : stats->min;
-        stats->n += 1;
-        stats->max = stats->max < temp ? temp : stats->max;
-        stats->sum += (long)temp;
-
-        if (*p == '\n')
-        {
-          ++entryCtr;
-          ++p;
-        }
-        i = p - buf; // increment i by the shift in buf
-        start = i;
-        continue;
-      }
-      i++;
+      // read city bytes -> fetch stats, and advance p until after ';'
+      Stats *stats = getCityFromLine(&p, citiesMap, &citiesBook);
+      int temp = parseTemp(&p); // moves p up till after '\n'
+      
+      stats->min = stats->min > temp ? temp : stats->min;
+      stats->n += 1;
+      stats->max = stats->max < temp ? temp : stats->max;
+      stats->sum += (long)temp;
+      
+      i = p - buf;
+      start = i;
     }
     leftover = total - start;
     memmove(buf, buf + start, leftover);

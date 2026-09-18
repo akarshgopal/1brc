@@ -10,9 +10,9 @@ With no professional experience in either language I just want to learn both, an
 ## Rules and limits
 1. No external library dependencies may be used
 2. The computation must happen at application runtime, i.e. you cannot process the measurements file at build time and just bake the result into the binary
-3. No LLMs for debugging.
+3. No LLMs for debugging or getting to the best solution.
 4. Using LLM chat interface for question answering is allowed, but no copy pasting of code.
-5. No LLM Agent written code.
+5. No LLM Agent written code. Every char on this codebase comes from me.
 
 ### Input value ranges are as follows:
 - Station name: non null UTF-8 string of min length 1 character and max length 100 bytes, containing neither ; nor \n characters. (i.e. this could be 100 one-byte characters, or 50 two-byte characters, etc.)
