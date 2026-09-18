@@ -48,10 +48,24 @@ typedef struct cityEntry
 
 int collisionCtr = 0;
 
-Stats *getOrCreateCity(cityEntry *citiesMap[TABLE_SIZE], char *city, size_t len, Book *citiesBook)
+// optimized for the read loop where we compute hash on go.
+// Returns the stats pointer, and also moves the read cursor.
+Stats *getCityFromLine(char **p, cityEntry *citiesMap[TABLE_SIZE],  Book *citiesBook)
 {
-  // we need to take a look at hash_str next.
-  size_t idx = hash_str(city, len) & MASK;
+  char *buf = *p;
+  char *line = *p;
+  size_t len = 0;
+  unsigned long hash = FNV_OFFSET;
+  while(*buf!=';')
+  {
+    // printf("%c",*buf);
+    hash ^= (uint64_t)(unsigned char)*buf++;
+    hash *= FNV_PRIME;
+    len++;
+  }
+  // printf("%c\n",*buf);
+  *p = buf+1; // move to right after ';'
+  size_t idx = hash & MASK;
 
   // follow linked list until we hit same city (can we avoid this somehow? probing?)
   while (1)
@@ -63,7 +77,7 @@ Stats *getOrCreateCity(cityEntry *citiesMap[TABLE_SIZE], char *city, size_t len,
     
       // manually copy str len of memory
       e->city = malloc(len * sizeof(char) + 1);
-      e->city = memcpy(e->city, city, len);
+      e->city = memcpy(e->city, line, len);
       e->city[len] = '\0'; // don't forget the null terminator!!
     
       // we point to the keys directly instead of another copy.
@@ -76,6 +90,31 @@ Stats *getOrCreateCity(cityEntry *citiesMap[TABLE_SIZE], char *city, size_t len,
       return &e->stats;
     }
 
+    if (memcmp(e->city, line, len) == 0)
+    {
+      return &e->stats;
+    }
+    collisionCtr++;
+    idx = (idx + 1) & MASK;
+  }
+
+}
+
+// optimized for only getting already populated City
+Stats *getCity(cityEntry *citiesMap[TABLE_SIZE], char *city, size_t len)
+{
+
+  // we need to take a look at hash_str next.
+  size_t idx = hash_str(city, len) & MASK;
+
+  // follow linked list until we hit same city (can we avoid this somehow? probing?)
+  while (1)
+  {
+    cityEntry *e = citiesMap[idx];
+    // WARN: returns NULL!!!
+    if (e==NULL){
+      return NULL;
+    }
     if (memcmp(e->city, city, len) == 0)
     {
       return &e->stats;

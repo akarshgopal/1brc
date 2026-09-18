@@ -6,6 +6,7 @@
 #include "data.h"
 
 // custom 10x -XX.Y -> -XXY parsing
+// moves s up till after '\n'
 int parseTemp(char **s)
 {
   char *p = *s;
@@ -27,7 +28,7 @@ int parseTemp(char **s)
     p += 4;
   }
 
-  *s = p;
+  *s = p+1; //skip the '\n'
   return neg ? -n : n;
 }
 
@@ -46,7 +47,7 @@ int printResults(Book *citiesBook, cityEntry *citiesMap[])
   {
     if (citiesBook->list[i] != NULL)
     {
-      Stats *stats = getOrCreateCity(citiesMap, citiesBook->list[i], strlen(citiesBook->list[i]), citiesBook); // -1 to omit null
+      Stats *stats = getCity(citiesMap, citiesBook->list[i], strlen(citiesBook->list[i]));
 
       // go through linked list to make sure we exhaust collided entries
       fprintf(fp, "%s:%.1f/%.1f/%.1f\n",
