@@ -32,6 +32,33 @@ int parseTemp(char **s)
   return neg ? -n : n;
 }
 
+// idea here was to load up the max 4 bytes of temp chars into register, reduce branching and then operate.
+// only saw a decrease in performance... i guess the temp distribution can take advantage of branching afterall
+int fancyParseTemp(char **s)
+{
+  char *p = *s;
+  int neg = (*p == '-');
+  p += neg;
+
+  uint32_t x;
+  memcpy(&x, p, sizeof(x)); // temp is min 3, max 5 chars. potential out-of-range access on *s here.
+
+  uint32_t a = x & 0x0f;
+  uint32_t b = (x >> 8) & 0x0f;
+  uint32_t c = (x >> 16) & 0x0f;
+  uint32_t d = (x >> 24) & 0x0f;
+
+  uint32_t two = (((x >> 8)) & 0xff) != '.';
+
+  int one_dig = a * 10 + c;
+  int two_dig = a * 100 + b * 10 + d;
+  int n = two ? two_dig : one_dig;
+
+  p += 3+two+1;
+  *s = p; // skip the '\n'
+  return neg ? -n : n;
+}
+
 int printResults(Book *citiesBook, cityEntry *citiesMap[])
 {
   FILE *fp = fopen("output/c_sol.txt", "w");
