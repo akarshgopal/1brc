@@ -24,7 +24,13 @@ pub fn print_results_to(cities_map: HashMap<String, Stats>, f: &mut File) {
 pub fn parse_temperature(s: &str) -> i32 {
     let bytes = s.as_bytes();
     let mut n = 0;
-    let mut neg = false;
+    let mut neg = bytes[0]==b'-';
+
+    // we're guaranteed 1 of 4 cases:
+    // XX.Y
+    // -XX.Y
+    // X.Y
+    // -X.Y
     for &b in bytes {
         match b {
             b'-' => neg = true,
