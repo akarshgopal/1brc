@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include "helpers.h"
 
-#define CHUNK 1024*10
-#define LEFTOVER_BUF 128
+#define CHUNK 1024*1024
+#define LEFTOVER_BUF 1024
 #define BUF_SIZE CHUNK+LEFTOVER_BUF
 #ifndef CAPACITY
   #define CAPACITY 10000
@@ -52,23 +52,20 @@ int main(int argc, char *argv[])
         perror("fread");
         break;
       }
-
-      if (feof(fp) && leftover>0){
+      if (feof(fp)){
         size_t start = 0;
         size_t i=0;
 
         // this is guaranteed to end at EOF by the input rules
-        while (i<leftover){
-          char *bufptr = buf;
-          
+        while (i<total){          
           if(buf[i]==';'){
             int len = i - start;
             i++;
 
             Stats *stats = getOrCreateCity(citiesMap, &buf[start], len, &citiesBook);
 
-            bufptr = &buf[i];
-            int temp = parseTemp(&bufptr);
+            char *p = &buf[i];
+            int temp = parseTemp(&p);
 
             stats->min = stats->min > temp ? temp : stats->min;
             stats->n += 1;
@@ -76,15 +73,15 @@ int main(int argc, char *argv[])
             stats->sum += (long)temp;
 
             // this is basically guaranteed so could get rid of this
-            if(*bufptr=='\n'){
+            if(*p=='\n'){
               ++entryCtr;
-              ++bufptr;
+              ++p;
             }
 
             // increment i by the shift in buf
-            i += bufptr - &buf[i];
+            i += p - buf;
             start = i;
-
+            continue;
           }
           i++;
         }
@@ -97,36 +94,40 @@ int main(int argc, char *argv[])
 
     // iterate through the read bytes until we're at end of the last line within last 128 bytes
     while (i<total-LEFTOVER_BUF){
-      char *bufptr = buf;
       // iterate through buf with as few string copies as possible.
       if(buf[i]==';'){
         int len = i - start;
         Stats *stats = getOrCreateCity(citiesMap, &buf[start], len, &citiesBook);
         i++; // skip ';'
-        bufptr = &buf[i];
-        int temp = parseTemp(&bufptr); // moves bufptr up till end of temperature str.
+        char *p = &buf[i];
+        int temp = parseTemp(&p); // moves bufptr up till '\n'
 
         stats->min = stats->min > temp ? temp : stats->min;
         stats->n += 1;
         stats->max = stats->max < temp ? temp : stats->max;
         stats->sum += (long)temp;
 
-        if(*bufptr=='\n'){
+        if(*p=='\n'){
           ++entryCtr;
-          ++bufptr;
+          ++p;
         }
-        i += bufptr - &buf[i]; // increment i by the shift in buf
+        i = p - buf; // increment i by the shift in buf
         start = i;
+        continue;
       }
       i++;
     }
-    
     leftover = total - start;
     memmove(buf, buf+start, leftover);
     
   }
-  fclose(fp);
-  free(buf);
-
+        printf("done loop\n");
+        fflush(stdout);
+        
+        fclose(fp);
+        printf("done loop");
+        fflush(stdout);
+        free(buf);
+        
   printResults(&citiesBook, citiesMap);
 }

@@ -5,23 +5,27 @@
 #include "merge.h"
 #include "data.h"
 
-// adapted atoi, we just ignore the '.', effectively 10x and converting to int.
+// custom 10x -XX.Y -> -XXY parsing
 int parseTemp(char **s)
 {
+  char *p = *s;
+  int neg = (*p == '-');
+  p += neg;
+  
   int n = 0;
-  int neg = **s == '-' ? 1 : 0;
-  *s += neg;
-
-  while ((**s >= '0' && **s <= '9') || **s == '.')
-  {
-    if (**s == '.')
-    {
-      (*s)++;
-    }
-    n = n * 10 - (int)(**s - '0');
-    (*s)++;
+  // we're guaranteed 1 or 2 digits before '.'
+  if(p[1]=='.'){
+    // X.Y
+    n = (p[0] - '0')*10 + (p[2] - '0');
+    p+=3;
+  } else {
+    // XX.Y
+    n = (p[0] - '0')*100 + (p[1] - '0')*10 + (p[3]-'0');
+    p+=4;
   }
-  return neg ? n : -n;
+
+  *s = p;
+  return neg ? -n : n;
 }
 
 int printResults(Book *citiesBook, cityEntry *citiesMap[])
