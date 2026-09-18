@@ -11,17 +11,20 @@ int parseTemp(char **s)
   char *p = *s;
   int neg = (*p == '-');
   p += neg;
-  
+
   int n = 0;
   // we're guaranteed 1 or 2 digits before '.'
-  if(p[1]=='.'){
+  if (p[1] == '.')
+  {
     // X.Y
-    n = (p[0] - '0')*10 + (p[2] - '0');
-    p+=3;
-  } else {
+    n = (p[0] - '0') * 10 + (p[2] - '0');
+    p += 3;
+  }
+  else
+  {
     // XX.Y
-    n = (p[0] - '0')*100 + (p[1] - '0')*10 + (p[3]-'0');
-    p+=4;
+    n = (p[0] - '0') * 100 + (p[1] - '0') * 10 + (p[3] - '0');
+    p += 4;
   }
 
   *s = p;
