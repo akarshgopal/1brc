@@ -7,14 +7,14 @@
 #define CHUNK 1024 * 1024
 #define LEFTOVER_BUF 1024
 #define BUF_SIZE CHUNK + LEFTOVER_BUF
-#ifndef CAPACITY
-#define CAPACITY 10000
+#ifndef TABLE_SIZE
+#define TABLE_SIZE 10000
 #endif
 
 int entryCtr = 0;
 int printCtr = 0;
 
-cityEntry *citiesMap[CAPACITY];
+cityEntry *citiesMap[TABLE_SIZE];
 
 Book citiesBook = {
     .count = 0};
