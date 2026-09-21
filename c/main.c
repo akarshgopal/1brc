@@ -14,7 +14,8 @@
 int entryCtr = 0;
 int printCtr = 0;
 
-cityEntry *citiesMap[TABLE_SIZE];
+static uint16_t ht[TABLE_SIZE];
+static cityEntry citiesMap[CAPACITY]; // only unique cities in here so CAPACITY
 
 Book citiesBook = {
     .count = 0};
@@ -60,9 +61,9 @@ int main(int argc, char *argv[])
         size_t i = 0;
         char *p = buf;
         // this is guaranteed to end at EOF by the input rules
-        while (i < leftover)
+        while (i < total)
         {
-          Stats *stats = getCityFromLine(&p, citiesMap, &citiesBook);
+          Stats *stats = getCityFromLine(&p, ht, citiesMap, &citiesBook);
           int temp = parseTemp(&p); // moves bufptr up till '\n'
           
           stats->min = stats->min > temp ? temp : stats->min;
@@ -84,7 +85,7 @@ int main(int argc, char *argv[])
     while (i < total - LEFTOVER_BUF)
     {
       // read city bytes -> fetch stats, and advance p until after ';'
-      Stats *stats = getCityFromLine(&p, citiesMap, &citiesBook);
+      Stats *stats = getCityFromLine(&p, ht, citiesMap, &citiesBook);
       int temp = parseTemp(&p); // moves p up till after '\n'
       
       stats->min = stats->min > temp ? temp : stats->min;
@@ -100,5 +101,5 @@ int main(int argc, char *argv[])
   }
   fclose(fp);
   free(buf);
-  printResults(&citiesBook, citiesMap);
+  printResults(ht, citiesMap, &citiesBook);
 }

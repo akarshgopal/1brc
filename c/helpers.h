@@ -59,7 +59,7 @@ int fancyParseTemp(char **s)
   return neg ? -n : n;
 }
 
-int printResults(Book *citiesBook, cityEntry *citiesMap[])
+int printResults(uint16_t* ht, cityEntry *citiesMap, Book *citiesBook)
 {
   FILE *fp = fopen("output/c_sol.txt", "w");
   if (fp == NULL)
@@ -74,7 +74,7 @@ int printResults(Book *citiesBook, cityEntry *citiesMap[])
   {
     if (citiesBook->list[i] != NULL)
     {
-      Stats *stats = getCity(citiesMap, citiesBook->list[i], strlen(citiesBook->list[i]));
+      Stats *stats = getCity(citiesBook->list[i], ht, citiesMap);
 
       // go through linked list to make sure we exhaust collided entries
       fprintf(fp, "%s:%.1f/%.1f/%.1f\n",
