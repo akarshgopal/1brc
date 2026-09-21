@@ -59,7 +59,8 @@ These seem pretty bad from comparing some other naive solutions on the internet.
 - faster line parsing: eliminate unnecessary mallocs
 - After parsing in chunks with fread(), instead of fgets():
 43.66s user 4.39s system 95% cpu 50.377 total
-
+- After moving to linear probing, unrolling loop in temp parsing, and reducing repeat visit of chars in main loop:
+22.64s user 3.18s system 95% cpu 26.899 total
 
 ### Common bugs
 #### C

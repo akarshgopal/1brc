@@ -27,15 +27,15 @@ static uint64_t hash_str(char *s, size_t len)
 // bookkeeping for sorting etc.
 typedef struct Book
 {
+  uint16_t count;
   char *list[CAPACITY];
-  size_t count;
 } Book;
 
 typedef struct Stats
 {
   long sum;
-  int min;
-  int max;
+  int min; // -999 but 64bit int should be fast...
+  int max; // 999
   int n; // overflow? max_val is 2^31 ~2e9 ig, so should be good...
 } Stats;
 
@@ -44,55 +44,60 @@ typedef struct cityEntry
 {
   char *city;
   Stats stats;
+  uint64_t hash;
+  size_t len;
+
 } cityEntry;
 
 int collisionCtr = 0;
 
 // optimized for the read loop where we compute hash on go.
 // Returns the stats pointer, and also moves the read cursor.
-Stats *getCityFromLine(char **p, cityEntry *citiesMap[TABLE_SIZE],  Book *citiesBook)
+Stats *getCityFromLine(char **p, uint16_t ht[TABLE_SIZE], cityEntry citiesMap[CAPACITY],  Book *citiesBook)
 {
   char *buf = *p;
   char *line = *p;
   size_t len = 0;
   unsigned long hash = FNV_OFFSET;
+
   while(*buf!=';')
   {
-    // printf("%c",*buf);
     hash ^= (uint64_t)(unsigned char)*buf++;
     hash *= FNV_PRIME;
     len++;
   }
-  // printf("%c\n",*buf);
+
   *p = buf+1; // move to right after ';'
   size_t idx = hash & MASK;
-
-  // follow linked list until we hit same city (can we avoid this somehow? probing?)
   while (1)
   {
-    cityEntry *e = citiesMap[idx];
-    if (e==NULL){
-      // new if entry doesn't exist
-      e = malloc(sizeof *e);
-    
+    if (ht[idx]==0){    
+      cityEntry e = citiesMap[citiesBook->count];
       // manually copy str len of memory
-      e->city = malloc(len * sizeof(char) + 1);
-      e->city = memcpy(e->city, line, len);
-      e->city[len] = '\0'; // don't forget the null terminator!!
-    
-      // we point to the keys directly instead of another copy.
-      citiesBook->list[citiesBook->count++] = e->city;
-    
+      e.city = malloc(len * sizeof(char) + 1);
+      e.city = memcpy(e.city, line, len);
+      e.city[len] = '\0'; // don't forget the null terminator!!
+      e.hash=hash;
+      e.len=len;
+      
       // dirty magic placeholders for now..
-      e->stats = (Stats){0, 100 * MULT_FACTOR, -100 * MULT_FACTOR, 0};
-      citiesMap[idx] = e;
-    
-      return &e->stats;
+      e.stats = (Stats){0, 100 * MULT_FACTOR, -100 * MULT_FACTOR, 0};
+      citiesMap[citiesBook->count] = e;
+
+      // we point to the keys directly instead of another copy.
+      citiesBook->list[citiesBook->count] = e.city;
+      ht[idx] = citiesBook->count+1;
+      return &citiesMap[citiesBook->count++].stats;
     }
 
-    if (memcmp(e->city, line, len) == 0)
+    uint16_t idx2 = ht[idx]-1;
+    cityEntry e = citiesMap[idx2];
+    if (
+      e.hash==hash &&
+      e.len==len &&
+      memcmp(e.city, line, len) == 0)
     {
-      return &e->stats;
+      return &citiesMap[idx2].stats;
     }
     collisionCtr++;
     idx = (idx + 1) & MASK;
@@ -101,24 +106,31 @@ Stats *getCityFromLine(char **p, cityEntry *citiesMap[TABLE_SIZE],  Book *cities
 }
 
 // optimized for only getting already populated City
-Stats *getCity(cityEntry *citiesMap[TABLE_SIZE], char *city, size_t len)
+Stats *getCity(char *s, uint16_t ht[TABLE_SIZE], cityEntry citiesMap[CAPACITY])
 {
-
+  size_t len = strlen(s);
   // we need to take a look at hash_str next.
-  size_t idx = hash_str(city, len) & MASK;
+  uint64_t hash = hash_str(s, len);
+  size_t idx = hash & MASK;
 
   // follow linked list until we hit same city (can we avoid this somehow? probing?)
   while (1)
   {
-    cityEntry *e = citiesMap[idx];
+    // check empty
     // WARN: returns NULL!!!
-    if (e==NULL){
+    if (ht[idx]==0){
       return NULL;
     }
-    if (memcmp(e->city, city, len) == 0)
+    cityEntry *e = &citiesMap[ht[idx]-1];
+    // check collision
+    if (
+      e->hash == hash &&
+      e->len == len &&
+      memcmp(e->city, s, len) == 0)
     {
       return &e->stats;
     }
+    // linear probe
     collisionCtr++;
     idx = (idx + 1) & MASK;
   }
