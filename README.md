@@ -62,6 +62,9 @@ These seem pretty bad from comparing some other naive solutions on the internet.
 - After moving to linear probing, unrolling loop in temp parsing, and reducing repeat visit of chars in main loop:
 22.64s user 3.18s system 95% cpu 26.899 total
 
+### Pass 3
+- C:
+- mmap 24.35s user 3.90s system 56% cpu 49.806 total
 ### Common bugs
 #### C
 - off-by-1

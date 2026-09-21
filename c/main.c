@@ -2,6 +2,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "helpers.h"
 
 #define CHUNK 1024 * 1024 * 8
@@ -27,79 +32,49 @@ int main(int argc, char *argv[])
   {
     path = argv[1];
   }
-  FILE *fp;
+  int fd =open(path, O_RDONLY);
 
-  fp = fopen(path, "r");
-  if (fp == NULL)
+  if (fd == -1)
   {
-    printf("Error opening file!\n");
+    perror("Error opening file!\n");
     return 1;
   }
 
-  char *buf = malloc(BUF_SIZE * sizeof(char)); // ~ 10000 lines, so safer to heap alloc
-  if (!buf)
-  {
+  struct stat st;
+  if (fstat(fd, &st)== -1){
+    perror("fstat");
+    close(fd);
     return 1;
   }
-  size_t leftover = 0;
 
-  while (1)
-  {
-    size_t n = fread(buf + leftover, 1, CHUNK * sizeof(char), fp);
-    size_t total = n + leftover;
-
-    // we've reached EOF basically
-    if (n < CHUNK)
-    {
-      if (ferror(fp))
-      {
-        perror("fread");
-        break;
-      }
-      if (feof(fp))
-      {
-        size_t i = 0;
-        char *p = buf;
-        // this is guaranteed to end at EOF by the input rules
-        while (i < total)
-        {
-          Stats *stats = getCityFromLine(&p, ht, citiesMap, &citiesBook);
-          int temp = parseTemp(&p); // moves bufptr up till '\n'
-          
-          stats->min = stats->min > temp ? temp : stats->min;
-          stats->n += 1;
-          stats->max = stats->max < temp ? temp : stats->max;
-          stats->sum += (long)temp;
-          
-          i = p - buf;
-        }
-        break;
-      }
-    }
-
-    size_t start = 0;
-    size_t i = 0;
-    char *p = buf;
-
-    // iterate through the read bytes until we're at end of the last line within LEFTOVER_BUF
-    while (i < total - LEFTOVER_BUF)
-    {
-      // read city bytes -> fetch stats, and advance p until after ';'
-      Stats *stats = getCityFromLine(&p, ht, citiesMap, &citiesBook);
-      int temp = parseTemp(&p); // moves p up till after '\n'
-      
-      stats->min = stats->min > temp ? temp : stats->min;
-      stats->n += 1;
-      stats->max = stats->max < temp ? temp : stats->max;
-      stats->sum += (long)temp;
-      
-      i = p - buf;
-      start = i;
-    }
-    leftover = total - start;
-    memmove(buf, buf + start, leftover);
+  size_t size = (size_t)st.st_size;
+  char *buf = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
+  if (buf == MAP_FAILED){
+    perror("mmap");
+    close(fd);
+    return 1;
   }
-  fclose(fp);
-  free(buf);
-  printResults(ht, citiesMap, &citiesBook);
+  if (madvise(buf, size, MADV_SEQUENTIAL)!=0){
+    perror("madvise");
+  }
+
+  char *p = buf;
+  char *end = buf + size;
+
+  while (p < end)
+  {
+    // read city bytes -> fetch stats, and advance p until after ';'
+    Stats *stats = getCityFromLine(&p, ht, citiesMap, &citiesBook);
+    int temp = parseTemp(&p); // moves p up till after '\n'
+    
+    stats->min = stats->min > temp ? temp : stats->min;
+    stats->n += 1;
+    stats->max = stats->max < temp ? temp : stats->max;
+    stats->sum += (long)temp;
+      
+    }
+    munmap(buf, size);
+    close(fd);
+
+    printResults(ht, citiesMap, &citiesBook);
 }
