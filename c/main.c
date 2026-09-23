@@ -20,8 +20,8 @@
 int entryCtr = 0;
 int printCtr = 0;
 
-static uint16_t ht[TABLE_SIZE];
-static cityEntry citiesMap[CAPACITY]; // only unique cities in here so CAPACITY
+static uint16_t htGlobal[TABLE_SIZE];
+static cityEntry citiesMapGlobal[CAPACITY]; // only unique cities in here so CAPACITY
 
 Book citiesBook = {
   .count = 0};
@@ -39,6 +39,8 @@ typedef struct WorkerArgs{
 void *readChunk(void *args){
   WorkerArgs *w = args;
   int entryCtr = 0;
+  static uint16_t ht[TABLE_SIZE];
+
   off_t offset = w->start;
   size_t leftover = 0;
   char *buf = malloc(BUF_SIZE * sizeof(char)); // ~ 10000 lines, so safer to heap alloc
@@ -75,7 +77,7 @@ void *readChunk(void *args){
       // this is guaranteed to end at EOF by the input rules
       while (i < total)
       {
-        Stats *stats = getCityFromLine(&p, ht, citiesMap, &w->ctr);
+        Stats *stats = getCityFromLine(&p, ht, w->citiesMap, &w->ctr);
         int temp = parseTemp(&p); // moves bufptr up till '\n'
         
         stats->min = stats->min > temp ? temp : stats->min;
@@ -94,7 +96,7 @@ void *readChunk(void *args){
     // iterate through the read bytes until we're at end of the last line within LEFTOVER_BUF
     while (i < total - LEFTOVER_BUF)
     {
-      Stats *stats = getCityFromLine(&p, ht, citiesMap, &w->ctr);
+      Stats *stats = getCityFromLine(&p, ht, w->citiesMap, &w->ctr);
       int temp = parseTemp(&p); // moves bufptr up till '\n'
       
       stats->min = stats->min > temp ? temp : stats->min;
