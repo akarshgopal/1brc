@@ -10,7 +10,7 @@ With no professional experience in either language I just want to learn both, an
 ## Rules and limits
 1. No external library dependencies may be used
 2. The computation must happen at application runtime, i.e. you cannot process the measurements file at build time and just bake the result into the binary
-3. No LLMs for debugging or getting to the best solution.
+3. <strike>No LLMs for debugging or getting to the best solution</strike>. This ended up just being an artificial slowdown in learning...
 4. Using LLM chat interface for question answering is allowed, but no copy pasting of code.
 5. No LLM Agent written code. Every char on this codebase comes from me.
 
