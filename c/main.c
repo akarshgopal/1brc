@@ -9,7 +9,7 @@
 #include <errno.h>
 
 #include "helpers.h"
-#define CHUNK 1024 * 1024 * 64
+#define CHUNK 1024 * 1024 * 8
 #define LEFTOVER_BUF 1024
 #define BUF_SIZE CHUNK + LEFTOVER_BUF
 #ifndef TABLE_SIZE
@@ -75,21 +75,15 @@ void readChunk(void *args){
       // this is guaranteed to end at EOF by the input rules
       while (i < total)
       {
-        // Stats *stats = getCityFromLine(&p, ht, citiesMap, &w->ctr);
-        // int temp = parseTemp(&p); // moves bufptr up till '\n'
+        Stats *stats = getCityFromLine(&p, ht, citiesMap, &w->ctr);
+        int temp = parseTemp(&p); // moves bufptr up till '\n'
         
-        // stats->min = stats->min > temp ? temp : stats->min;
-        // stats->n += 1;
-        // stats->max = stats->max < temp ? temp : stats->max;
-        // stats->sum += (long)temp;
+        stats->min = stats->min > temp ? temp : stats->min;
+        stats->n += 1;
+        stats->max = stats->max < temp ? temp : stats->max;
+        stats->sum += (long)temp;
 
-        while(*p!='\n'){
-          p++;
-        }
-        if (*p=='\n'){
         entryCtr++;
-          p++;
-        }
         
         i = p - buf;
       }
@@ -100,20 +94,14 @@ void readChunk(void *args){
     // iterate through the read bytes until we're at end of the last line within LEFTOVER_BUF
     while (i < total - LEFTOVER_BUF)
     {
-      // Stats *stats = getCityFromLine(&p, ht, citiesMap, &w->ctr);
-      // int temp = parseTemp(&p); // moves bufptr up till '\n'
+      Stats *stats = getCityFromLine(&p, ht, citiesMap, &w->ctr);
+      int temp = parseTemp(&p); // moves bufptr up till '\n'
       
-      // stats->min = stats->min > temp ? temp : stats->min;
-      // stats->n += 1;
-      // stats->max = stats->max < temp ? temp : stats->max;
-      // stats->sum += (long)temp;
-      while(*p!='\n'){
-        p++;
-      }
-      if (*p=='\n'){
+      stats->min = stats->min > temp ? temp : stats->min;
+      stats->n += 1;
+      stats->max = stats->max < temp ? temp : stats->max;
+      stats->sum += (long)temp;
       entryCtr++;
-        p++;
-      }
       
       i = p - buf;
     }

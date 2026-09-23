@@ -72,8 +72,8 @@ Stats *getCityFromLine(char **p, uint16_t ht[TABLE_SIZE], cityEntry citiesMap[CA
   size_t idx = hash & MASK;
   while (1)
   {
-    if (ht[idx]==0){    
-      cityEntry e = citiesMap[*cityCtr++];
+    if (ht[idx]==0){
+      cityEntry e = citiesMap[cityCount];
       // manually copy str len of memory
       e.city = malloc(len * sizeof(char) + 1);
       e.city = memcpy(e.city, line, len);
@@ -86,7 +86,7 @@ Stats *getCityFromLine(char **p, uint16_t ht[TABLE_SIZE], cityEntry citiesMap[CA
       citiesMap[cityCount] = e;
 
       ht[idx] = cityCount+1;
-      *cityCtr++;
+      (*cityCtr)++;
       return &citiesMap[cityCount].stats;
     }
 
