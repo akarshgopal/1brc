@@ -104,7 +104,7 @@ Stats *getCityFromLine(char **p, uint16_t ht[TABLE_SIZE], cityEntry citiesMap[CA
     b = a;
   }
 
-  uint64_t h = a ^ __builtin_rotateleft64(b,21);
+  uint64_t h = a ^ rotl64(b,21);
   h ^= (uint64_t)len * HASH_CONST;
   h ^= h >> 32;
 
