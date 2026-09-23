@@ -15,7 +15,7 @@
 #ifndef TABLE_SIZE
   #define TABLE_SIZE 10000
 #endif
-#define N_THREADS 10
+#define N_THREADS 16
 
 int entryCtr = 0;
 int printCtr = 0;
@@ -33,13 +33,13 @@ typedef struct WorkerArgs{
   off_t start;
   off_t end;
   cityEntry citiesMap[CAPACITY];
+  uint16_t ht[TABLE_SIZE];
 }WorkerArgs;
 
 // each thread for now just preads and counts rows.
 void *readChunk(void *args){
   WorkerArgs *w = args;
   int entryCtr = 0;
-  uint16_t ht[TABLE_SIZE];
 
   off_t offset = w->start;
   size_t leftover = 0;
@@ -77,7 +77,7 @@ void *readChunk(void *args){
       // this is guaranteed to end at EOF by the input rules
       while (i < total)
       {
-        Stats *stats = getCityFromLine(&p, ht, w->citiesMap, &w->ctr);
+        Stats *stats = getCityFromLine(&p, w->ht, w->citiesMap, &w->ctr);
         int temp = parseTemp(&p); // moves bufptr up till '\n'
         
         stats->min = stats->min > temp ? temp : stats->min;
@@ -96,7 +96,7 @@ void *readChunk(void *args){
     // iterate through the read bytes until we're at end of the last line within LEFTOVER_BUF
     while (i < total - LEFTOVER_BUF)
     {
-      Stats *stats = getCityFromLine(&p, ht, w->citiesMap, &w->ctr);
+      Stats *stats = getCityFromLine(&p, w->ht, w->citiesMap, &w->ctr);
       int temp = parseTemp(&p); // moves bufptr up till '\n'
       
       stats->min = stats->min > temp ? temp : stats->min;
@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
   }
  
   pthread_t threads[N_THREADS];
-  WorkerArgs args[N_THREADS];
+  static WorkerArgs args[N_THREADS];
 
   for(int i=0; i<N_THREADS; ++i){    
     args[i].id = i;
