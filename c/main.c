@@ -171,5 +171,6 @@ int main(int argc, char *argv[])
     // printResults(ht, citiesMap, &citiesBook);
   }
   close(fd);
+  printf("total collisions: %d", collisionCtr);
   printf("total lines: %d\n", total_lines);
 }
