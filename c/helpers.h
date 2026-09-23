@@ -59,8 +59,13 @@ int fancyParseTemp(char **s)
   return neg ? -n : n;
 }
 
-int printResults(uint16_t* ht, cityEntry *citiesMap, Book *citiesBook)
+int printResults(uint16_t* ht, cityEntry *citiesMap, size_t cityCount)
 {
+
+  char *citiesList[cityCount];
+  for(size_t i; i< cityCount; ++i){
+    citiesList[i] = citiesMap[i].city;
+  }
   FILE *fp = fopen("output/c_sol.txt", "w");
   if (fp == NULL)
   {
@@ -68,17 +73,17 @@ int printResults(uint16_t* ht, cityEntry *citiesMap, Book *citiesBook)
     return 1;
   }
 
-  mergeSort(citiesBook->list, citiesBook->count);
+  mergeSort(citiesList, cityCount);
 
-  for (size_t i = 0; i < citiesBook->count; i++)
+  for (size_t i = 0; i < cityCount; i++)
   {
-    if (citiesBook->list[i] != NULL)
+    if (citiesList[i] != NULL)
     {
-      Stats *stats = getCity(citiesBook->list[i], ht, citiesMap);
+      Stats *stats = getCity(citiesList[i], ht, citiesMap);
 
       // go through linked list to make sure we exhaust collided entries
       fprintf(fp, "%s:%.1f/%.1f/%.1f\n",
-              citiesBook->list[i],
+              citiesList[i],
               (float)stats->min / MULT_FACTOR,
               (float)stats->sum / stats->n / MULT_FACTOR,
               (float)stats->max / MULT_FACTOR);

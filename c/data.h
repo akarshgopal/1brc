@@ -8,7 +8,7 @@
 #define FNV_OFFSET 14695981039346656037UL
 #define FNV_PRIME 1099511628211UL
 #define MULT_FACTOR 10 // we deal in int, and assume all numbers are 1 decimal valued.
-#define TABLE_SIZE 1024*128 // rules say 10000 max unique cities
+#define TABLE_SIZE 1024*64 // rules say 10000 max unique cities
 #define CAPACITY 1024*16
 #define MASK (TABLE_SIZE - 1)
 
@@ -53,8 +53,9 @@ int collisionCtr = 0;
 
 // optimized for the read loop where we compute hash on go.
 // Returns the stats pointer, and also moves the read cursor.
-Stats *getCityFromLine(char **p, uint16_t ht[TABLE_SIZE], cityEntry citiesMap[CAPACITY],  Book *citiesBook)
+Stats *getCityFromLine(char **p, uint16_t ht[TABLE_SIZE], cityEntry citiesMap[CAPACITY],  size_t *cityCtr)
 {
+  size_t cityCount = *cityCtr;
   char *buf = *p;
   char *line = *p;
   size_t len = 0;
@@ -72,7 +73,7 @@ Stats *getCityFromLine(char **p, uint16_t ht[TABLE_SIZE], cityEntry citiesMap[CA
   while (1)
   {
     if (ht[idx]==0){    
-      cityEntry e = citiesMap[citiesBook->count];
+      cityEntry e = citiesMap[*cityCtr++];
       // manually copy str len of memory
       e.city = malloc(len * sizeof(char) + 1);
       e.city = memcpy(e.city, line, len);
@@ -82,12 +83,11 @@ Stats *getCityFromLine(char **p, uint16_t ht[TABLE_SIZE], cityEntry citiesMap[CA
       
       // dirty magic placeholders for now..
       e.stats = (Stats){0, 100 * MULT_FACTOR, -100 * MULT_FACTOR, 0};
-      citiesMap[citiesBook->count] = e;
+      citiesMap[cityCount] = e;
 
-      // we point to the keys directly instead of another copy.
-      citiesBook->list[citiesBook->count] = e.city;
-      ht[idx] = citiesBook->count+1;
-      return &citiesMap[citiesBook->count++].stats;
+      ht[idx] = cityCount+1;
+      *cityCtr++;
+      return &citiesMap[cityCount].stats;
     }
 
     uint16_t idx2 = ht[idx]-1;
