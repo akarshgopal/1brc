@@ -39,7 +39,7 @@ typedef struct WorkerArgs{
 void *readChunk(void *args){
   WorkerArgs *w = args;
   int entryCtr = 0;
-  static uint16_t ht[TABLE_SIZE];
+  uint16_t ht[TABLE_SIZE];
 
   off_t offset = w->start;
   size_t leftover = 0;
