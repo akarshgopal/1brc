@@ -55,51 +55,49 @@ int collisionCtr = 0;
 // Returns the stats pointer, and also moves the read cursor.
 Stats *getCityFromLine(char **p, uint16_t ht[TABLE_SIZE], cityEntry citiesMap[CAPACITY],  size_t *cityCtr)
 {
-  size_t cityCount = *cityCtr;
   char *buf = *p;
   char *line = *p;
   size_t len = 0;
   unsigned long hash = FNV_OFFSET;
-
+  
   while(*buf!=';')
   {
     hash ^= (uint64_t)(unsigned char)*buf++;
     hash *= FNV_PRIME;
     len++;
   }
-
+  
   *p = buf+1; // move to right after ';'
   size_t idx = hash & MASK;
   while (1)
   {
     if (ht[idx]==0){
-      cityEntry e = citiesMap[cityCount];
+      size_t cityCount = *cityCtr;
+      cityEntry *e = &citiesMap[cityCount];
       // manually copy str len of memory
-      e.city = malloc(len * sizeof(char) + 1);
-      e.city = memcpy(e.city, line, len);
-      e.city[len] = '\0'; // don't forget the null terminator!!
-      e.hash=hash;
-      e.len=len;
+      e->city = malloc(len * sizeof(char) + 1);
+      e->city = memcpy(e->city, line, len);
+      e->city[len] = '\0'; // don't forget the null terminator!!
+      e->hash=hash;
+      e->len=len;
       
       // dirty magic placeholders for now..
-      e.stats = (Stats){0, 100 * MULT_FACTOR, -100 * MULT_FACTOR, 0};
-      citiesMap[cityCount] = e;
+      e->stats = (Stats){0, 100 * MULT_FACTOR, -100 * MULT_FACTOR, 0};
 
       ht[idx] = cityCount+1;
-      (*cityCtr)++;
-      return &citiesMap[cityCount].stats;
+      (*cityCtr) = cityCount+1;
+      return &e->stats;
     }
 
-    uint16_t idx2 = ht[idx]-1;
-    cityEntry e = citiesMap[idx2];
+    cityEntry *e = &citiesMap[ht[idx]-1];
     if (
-      e.hash==hash &&
-      e.len==len &&
-      memcmp(e.city, line, len) == 0)
+      e->hash==hash &&
+      e->len==len &&
+      memcmp(e->city, line, len) == 0)
     {
-      return &citiesMap[idx2].stats;
+      return &e->stats;
     }
-    collisionCtr++;
+    // collisionCtr++;
     idx = (idx + 1) & MASK;
   }
 

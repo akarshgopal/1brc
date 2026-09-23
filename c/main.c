@@ -4,12 +4,12 @@
 #include <stdint.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <threads.h>
+#include <pthread.h>
 #include <unistd.h>
 #include <errno.h>
 
 #include "helpers.h"
-#define CHUNK 1024 * 1024 * 8
+#define CHUNK 1024 * 1024 * 64
 #define LEFTOVER_BUF 1024
 #define BUF_SIZE CHUNK + LEFTOVER_BUF
 #ifndef TABLE_SIZE
@@ -36,14 +36,14 @@ typedef struct WorkerArgs{
 }WorkerArgs;
 
 // each thread for now just preads and counts rows.
-void readChunk(void *args){
+void *readChunk(void *args){
   WorkerArgs *w = args;
   int entryCtr = 0;
   off_t offset = w->start;
   size_t leftover = 0;
   char *buf = malloc(BUF_SIZE * sizeof(char)); // ~ 10000 lines, so safer to heap alloc
   if (!buf){
-    return;
+    return NULL;
   }
   
   while (offset < w->end)
@@ -55,11 +55,11 @@ void readChunk(void *args){
     }
 
     size_t n = pread(w->fd, buf+leftover, wanted, offset);
-    printf("id: %d n: %ld linectr: %d \n",w->id, n, entryCtr);
+    // printf("id: %d n: %ld linectr: %d \n",w->id, n, entryCtr);
     fflush(stdout);
     if (n<0){
       perror("pread");
-      return;
+      return NULL;
     }
     if (n==0){
       break;
@@ -113,8 +113,9 @@ void readChunk(void *args){
   free(buf);
   // if id = 0, read only until the first \n
   // else read until first eof, or go past end until first \n
-  printf("total lines in thread %d: %d\n", w->id, entryCtr);
+  // printf("total lines in thread %d: %d\n", w->id, entryCtr);
   w->ctr = entryCtr;
+  return NULL;
 }
 
 int main(int argc, char *argv[])
@@ -152,7 +153,7 @@ int main(int argc, char *argv[])
     boundaries[i] = pos;
   }
  
-  thrd_t threads[N_THREADS];
+  pthread_t threads[N_THREADS];
   WorkerArgs args[N_THREADS];
 
   for(int i=0; i<N_THREADS; ++i){    
@@ -161,11 +162,11 @@ int main(int argc, char *argv[])
     args[i].start = boundaries[i];
     args[i].end = boundaries[i+1];
     args[i].ctr = 0;
-    thrd_create(&threads[i], readChunk, &args[i]);
+    pthread_create(&threads[i], NULL, readChunk, &args[i]);
   }
   
   for(int i=0; i<N_THREADS; ++i){    
-    thrd_join(threads[i], NULL);
+    pthread_join(threads[i], NULL);
     total_lines += args[i].ctr;
     // printResults(ht, citiesMap, &citiesBook);
   }
