@@ -36,7 +36,7 @@ static uint64_t hash_str(char *s, size_t len)
       memcpy(&a, s, len);
       b=a;
   }
-  uint64_t h = a ^ __builtin_rotateleft64(b,21);
+  uint64_t h = a ^ rotl64(b,21);
   h ^= (uint64_t)len * HASH_CONST;
   h ^= h >> 32;
   return h;
