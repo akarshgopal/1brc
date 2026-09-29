@@ -23,7 +23,7 @@ int printCtr = 0;
 static uint16_t htGlobal[TABLE_SIZE];
 static cityEntry citiesMapGlobal[CAPACITY]; // only unique cities in here so CAPACITY
 
-Book citiesBook = {
+static Book citiesBookGlobal = {
   .count = 0};
 
 typedef struct WorkerArgs{
@@ -116,8 +116,19 @@ void *readChunk(void *args){
   // if id = 0, read only until the first \n
   // else read until first eof, or go past end until first \n
   // printf("total lines in thread %d: %d\n", w->id, entryCtr);
-  w->ctr = entryCtr;
   return NULL;
+}
+
+void mergeResults(uint16_t ht[], uint16_t cityCount, cityEntry citiesMap[CAPACITY], uint16_t htGlobal[], cityEntry citiesMapGlobal[CAPACITY]){
+  // we need to iterate through cities -> get their stats and update the global citiesMap
+  for(size_t i; i< cityCount; ++i){
+    Stats *stats = getOrCreateCity(citiesMap[i].city, ht, citiesMap, &cityCount);
+    Stats *globalStats = getOrCreateCity(citiesMap[i].city, ht, citiesMapGlobal, &citiesBookGlobal.count);
+    globalStats->min = globalStats->min > stats->min ? stats->min : globalStats->min;
+    globalStats->n += stats->n;
+    globalStats->max = globalStats->max < stats->max ? stats->max : globalStats->max;
+    globalStats->sum += stats->sum;
+  }
 }
 
 int main(int argc, char *argv[])
@@ -170,9 +181,10 @@ int main(int argc, char *argv[])
   for(int i=0; i<N_THREADS; ++i){    
     pthread_join(threads[i], NULL);
     total_lines += args[i].ctr;
-    // printResults(ht, citiesMap, &citiesBook);
+    mergeResults(args[i].ht, args[i].ctr, args[i].citiesMap, htGlobal, citiesMapGlobal);
   }
   close(fd);
-  printf("total collisions: %d", collisionCtr);
-  printf("total lines: %d\n", total_lines);
+  printResults(htGlobal, citiesMapGlobal, citiesBookGlobal.count);
+  // printf("total collisions: %d", collisionCtr);
+  // printf("total lines: %d\n", total_lines);
 }

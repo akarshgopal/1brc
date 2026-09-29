@@ -6,7 +6,7 @@
 //-------------------- Hash Map ---------------------
 #define HASH_CONST 0x9E3779B97F4A7C15ULL
 #define MULT_FACTOR 10 // we deal in int, and assume all numbers are 1 decimal valued.
-#define TABLE_SIZE 1024*128 // rules say 10000 max unique cities
+#define TABLE_SIZE 1024*32 // rules say 10000 max unique cities
 #define CAPACITY 1024*16
 #define MASK (TABLE_SIZE - 1)
 
@@ -52,9 +52,9 @@ typedef struct Book
 typedef struct Stats
 {
   long sum;
-  int min; // -999 but 64bit int should be fast...
-  int max; // 999
-  int n; // overflow? max_val is 2^31 ~2e9 ig, so should be good...
+  int16_t min; // -999 but 64bit int should be fast...
+  int16_t max; // 999
+  uint32_t n; // overflow? max_val is 2^31 ~2e9 ig, so should be good...
 } Stats;
 
 // Simple hash map with linear probing
@@ -146,7 +146,7 @@ Stats *getCityFromLine(char **p, uint16_t ht[TABLE_SIZE], cityEntry citiesMap[CA
 }
 
 // optimized for only getting already populated City
-Stats *getCity(char *s, uint16_t ht[TABLE_SIZE], cityEntry citiesMap[CAPACITY])
+Stats *getOrCreateCity(char *s, uint16_t ht[TABLE_SIZE], cityEntry citiesMap[CAPACITY], uint16_t *cityCtr)
 {
   size_t len = strlen(s);
   // we need to take a look at hash_str next.
@@ -157,9 +157,21 @@ Stats *getCity(char *s, uint16_t ht[TABLE_SIZE], cityEntry citiesMap[CAPACITY])
   while (1)
   {
     // check empty
-    // WARN: returns NULL!!!
     if (ht[idx]==0){
-      return NULL;
+      uint16_t cityCount = *cityCtr;
+      cityEntry *e = &citiesMap[cityCount];
+      e->city = malloc(len * sizeof(char) + 1);
+      e->city = memcpy(e->city, s, len);
+      e->city[len] = '\0'; // don't forget the null terminator!!
+      e->hash=hash;
+      e->len=len;
+      
+      // dirty magic placeholders for now..
+      e->stats = (Stats){0, 100 * MULT_FACTOR, -100 * MULT_FACTOR, 0};
+
+      ht[idx] = cityCount+1;
+      (*cityCtr) = cityCount+1;
+      return &e->stats;
     }
     cityEntry *e = &citiesMap[ht[idx]-1];
     // check collision
