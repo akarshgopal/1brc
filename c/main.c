@@ -30,7 +30,7 @@ static Book citiesBookGlobal = {
 
 typedef struct WorkerArgs{
   int id;
-  int fd;
+  char* buf;
   size_t ctr;
   off_t start;
   off_t end;
@@ -43,81 +43,22 @@ void *readChunk(void *args){
   WorkerArgs *w = args;
   int entryCtr = 0;
 
-  off_t offset = w->start;
-  size_t leftover = 0;
-  char *buf = malloc(BUF_SIZE * sizeof(char)); // ~ 10000 lines, so safer to heap alloc
-  if (!buf){
-    return NULL;
-  }
-  
-  while (offset < w->end)
+  size_t i = 0;
+  char *start = w->buf + w->start;
+  char *end = w->buf + w->end;
+  char *cursor = start;
+  while (cursor < end)
   {
-    size_t wanted = CHUNK;
-    off_t remaining = w->end - offset;
-    if((off_t)wanted > remaining){
-      wanted = (size_t)remaining;
-    }
-
-    ssize_t n = pread(w->fd, buf+leftover, wanted, offset);
-    // printf("id: %d n: %ld linectr: %d \n",w->id, n, entryCtr);
-    fflush(stdout);
-    if (n<0){
-      perror("pread");
-      return NULL;
-    }
-    if (n==0){
-      break;
-    }
-
-    size_t total = n + leftover;
-    size_t i = 0;
-    char *p = buf;
-
-    // we've reached EOF basically
-    if (n < CHUNK)
-    {
-      // this is guaranteed to end at EOF by the input rules
-      while (i < total)
-      {
-        Stats *stats = getCityFromLine(&p, w->ht, w->citiesMap, &w->ctr);
-        int temp = parseTemp(&p); // moves bufptr up till '\n'
-        
-        stats->min = stats->min > temp ? temp : stats->min;
-        stats->n += 1;
-        stats->max = stats->max < temp ? temp : stats->max;
-        stats->sum += (long)temp;
-
-        entryCtr++;
-        
-        i = p - buf;
-      }
-      
-      break;
-    }
-
-    // iterate through the read bytes until we're at end of the last line within LEFTOVER_BUF
-    while (i < total - LEFTOVER_BUF)
-    {
-      Stats *stats = getCityFromLine(&p, w->ht, w->citiesMap, &w->ctr);
-      int temp = parseTemp(&p); // moves bufptr up till '\n'
-      
-      stats->min = stats->min > temp ? temp : stats->min;
-      stats->n += 1;
-      stats->max = stats->max < temp ? temp : stats->max;
-      stats->sum += (long)temp;
-      entryCtr++;
-      
-      i = p - buf;
-    }
-    leftover = total - i;
-    memmove(buf, buf + i, leftover);
-    offset += n;
+    Stats *stats = getCityFromLine(&cursor, w->ht, w->citiesMap, &w->ctr);
+    int temp = parseTemp(&cursor); // moves bufptr up till '\n'
+    
+    stats->min = stats->min > temp ? temp : stats->min;
+    stats->n += 1;
+    stats->max = stats->max < temp ? temp : stats->max;
+    stats->sum += (long)temp;
+    entryCtr++;    
   }
 
-  free(buf);
-  // if id = 0, read only until the first \n
-  // else read until first eof, or go past end until first \n
-  // printf("total lines in thread %d: %d\n", w->id, entryCtr);
   return NULL;
 }
 
@@ -169,25 +110,36 @@ int main(int argc, char *argv[])
     boundaries[i] = pos;
   }
  
+  char *buf = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  
+  if (buf == MAP_FAILED){
+    perror("mmap");
+    return 1;
+  }
+  if (madvise(buf, file_size, MADV_SEQUENTIAL)!=0){
+    perror("madvise");
+  }
+
   pthread_t threads[N_THREADS];
   static WorkerArgs args[N_THREADS];
 
   for(int i=0; i<N_THREADS; ++i){    
     args[i].id = i;
-    args[i].fd = fd;
+    args[i].buf = buf;
     args[i].start = boundaries[i];
     args[i].end = boundaries[i+1];
     args[i].ctr = 0;
-    pthread_create(&threads[i], NULL, readChunk, &args[i]);
+    int created = pthread_create(&threads[i], NULL, readChunk, &args[i]);
+    if(created!=0){
+      perror("Failed to create thread");
+    }
   }
   
   for(int i=0; i<N_THREADS; ++i){    
     pthread_join(threads[i], NULL);
-    total_lines += args[i].ctr;
     mergeResults(args[i].ht, args[i].ctr, args[i].citiesMap, htGlobal, citiesMapGlobal);
   }
+  munmap(buf, file_size);
   close(fd);
   printResults(htGlobal, citiesMapGlobal, citiesBookGlobal.count);
-  // printf("total collisions: %d", collisionCtr);
-  // printf("total lines: %d\n", total_lines);
 }
