@@ -82,8 +82,9 @@ int printResults(uint16_t* ht, cityEntry *citiesMap, uint16_t cityCount)
       Stats *stats = getOrCreateCity(citiesList[i], ht, citiesMap, &cityCount);
       
       // round up
-      long avg = stats->sum / stats->n;
-      avg += avg % MULT_FACTOR > 0.0 ? 1.0 : 0.0;
+      long avg = stats->sum / (stats->n);
+      long rem = stats->sum % (stats->n);
+      avg += rem > 0.0;
 
       // go through linked list to make sure we exhaust collided entries
       fprintf(fp, "%s:%.1f/%.1f/%.1f\n",
