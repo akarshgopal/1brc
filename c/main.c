@@ -7,6 +7,8 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/mman.h>
+#include <bits/mman-linux.h>
 
 #include "helpers.h"
 #define CHUNK 1024 * 1024 * 64
@@ -56,7 +58,7 @@ void *readChunk(void *args){
       wanted = (size_t)remaining;
     }
 
-    size_t n = pread(w->fd, buf+leftover, wanted, offset);
+    ssize_t n = pread(w->fd, buf+leftover, wanted, offset);
     // printf("id: %d n: %ld linectr: %d \n",w->id, n, entryCtr);
     fflush(stdout);
     if (n<0){
@@ -121,9 +123,10 @@ void *readChunk(void *args){
 
 void mergeResults(uint16_t ht[], uint16_t cityCount, cityEntry citiesMap[CAPACITY], uint16_t htGlobal[], cityEntry citiesMapGlobal[CAPACITY]){
   // we need to iterate through cities -> get their stats and update the global citiesMap
-  for(size_t i; i< cityCount; ++i){
-    Stats *stats = getOrCreateCity(citiesMap[i].city, ht, citiesMap, &cityCount);
-    Stats *globalStats = getOrCreateCity(citiesMap[i].city, ht, citiesMapGlobal, &citiesBookGlobal.count);
+  for(size_t i=0; i< cityCount; ++i){
+    Stats *stats = &citiesMap[i].stats;
+    Stats *globalStats = getOrCreateCity(citiesMap[i].city, htGlobal, citiesMapGlobal, &citiesBookGlobal.count);
+    // printf("%d %d %d %ld\n", stats->min, stats->max, stats->n, stats->sum);
     globalStats->min = globalStats->min > stats->min ? stats->min : globalStats->min;
     globalStats->n += stats->n;
     globalStats->max = globalStats->max < stats->max ? stats->max : globalStats->max;
