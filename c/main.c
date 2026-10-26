@@ -38,25 +38,22 @@ typedef struct WorkerArgs{
   uint16_t ht[TABLE_SIZE];
 }WorkerArgs;
 
-// each thread for now just preads and counts rows.
 void *readChunk(void *args){
   WorkerArgs *w = args;
-  int entryCtr = 0;
 
-  size_t i = 0;
-  char *start = w->buf + w->start;
+  char *cursor = w->buf + w->start;
   char *end = w->buf + w->end;
-  char *cursor = start;
+
+  // !HOT PATH: every single possible speed-up here affects bottom line
   while (cursor < end)
   {
     Stats *stats = getCityFromLine(&cursor, w->ht, w->citiesMap, &w->ctr);
     int temp = parseTemp(&cursor); // moves bufptr up till '\n'
     
     stats->min = stats->min > temp ? temp : stats->min;
-    stats->n += 1;
+    ++(stats->n);
     stats->max = stats->max < temp ? temp : stats->max;
     stats->sum += (long)temp;
-    entryCtr++;    
   }
 
   return NULL;
@@ -67,7 +64,6 @@ void mergeResults(uint16_t ht[], uint16_t cityCount, cityEntry citiesMap[CAPACIT
   for(size_t i=0; i< cityCount; ++i){
     Stats *stats = &citiesMap[i].stats;
     Stats *globalStats = getOrCreateCity(citiesMap[i].city, htGlobal, citiesMapGlobal, &citiesBookGlobal.count);
-    // printf("%d %d %d %ld\n", stats->min, stats->max, stats->n, stats->sum);
     globalStats->min = globalStats->min > stats->min ? stats->min : globalStats->min;
     globalStats->n += stats->n;
     globalStats->max = globalStats->max < stats->max ? stats->max : globalStats->max;
@@ -75,6 +71,9 @@ void mergeResults(uint16_t ht[], uint16_t cityCount, cityEntry citiesMap[CAPACIT
   }
 }
 
+// Input expectations:
+// File longer than at least 10k lines. At small lengths ~1-10 records,
+// the threading model, the bounds calculation etc will break!
 int main(int argc, char *argv[])
 {
   int total_lines = 0;
@@ -94,22 +93,7 @@ int main(int argc, char *argv[])
   off_t boundaries[N_THREADS+1];
   boundaries[0] = 0;
   boundaries[N_THREADS] = file_size;
-
-  // cut into chunks and find boundaries
-  for(int i=1;i<N_THREADS;++i){
-
-    off_t pos = (file_size*i) / N_THREADS;
-
-    char c;
-
-    while (pread(fd, &c, 1, pos)==1){
-      pos++;
-
-      if(c == '\n') break;
-    }
-    boundaries[i] = pos;
-  }
- 
+  
   char *buf = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
   
   if (buf == MAP_FAILED){
@@ -120,7 +104,31 @@ int main(int argc, char *argv[])
     perror("madvise");
   }
 
+  // cut into chunks and find boundaries by advancing until next \n
+  for(int i=1;i<N_THREADS;++i){
+
+    off_t pos = (file_size*i) / N_THREADS;
+
+    while (pos<file_size && buf[pos] != '\n'){
+      ++pos;
+    }
+
+    if(pos<file_size){
+      ++pos;
+    }
+
+    boundaries[i] = pos;
+  }
+ 
+  //shift final end back to previous \n and run single byte parsing for last line
+  off_t pos = file_size-2; // -2 to avoid any trailing \n. Hacky...
+  while(pos>0 && buf[pos] != '\n'){
+    --pos;
+  }
+  off_t last_line = pos+1;
+  boundaries[N_THREADS] = last_line;
   pthread_t threads[N_THREADS];
+
   static WorkerArgs args[N_THREADS];
 
   for(int i=0; i<N_THREADS; ++i){    
@@ -139,6 +147,29 @@ int main(int argc, char *argv[])
     pthread_join(threads[i], NULL);
     mergeResults(args[i].ht, args[i].ctr, args[i].citiesMap, htGlobal, citiesMapGlobal);
   }
+  
+  // parse last line
+  {
+    char *cursor = buf+last_line+1;
+    printf("cursor char: %c\t", *cursor);
+    while(*cursor!=';'){
+      cursor++;
+    }
+    size_t len = cursor - &buf[last_line];
+    char *city = malloc(len * sizeof(char) + 1);
+    city = memcpy(city, &buf[last_line], len);
+    city[len] = '\0';
+    printf("last line: %s\n", city);
+    Stats *stats = getOrCreateCity(city, htGlobal, citiesMapGlobal, &citiesBookGlobal.count);
+    cursor++;
+    int temp = parseTemp(&cursor); // moves bufptr up till '\n'
+    
+    stats->min = stats->min > temp ? temp : stats->min;
+    ++(stats->n);
+    stats->max = stats->max < temp ? temp : stats->max;
+    stats->sum += (long)temp;
+  }
+
   munmap(buf, file_size);
   close(fd);
   printResults(htGlobal, citiesMapGlobal, citiesBookGlobal.count);
